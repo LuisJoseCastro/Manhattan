@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GPS-MEX | Navegación Inteligente</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #2b50aa;
+      --primary-dark: #1f3d8b;
+      --secondary: #3a56d4;
+      --success: #4cc9f0;
+      --warning: #f8961e;
+      --danger: #f94144;
+      --light: #f8f9fa;
+      --dark: #212529;
+      --gray: #6c757d;
+      --gray-light: #e9ecef;
+      --shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+      --radius: 16px;
+      --radius-sm: 10px;
+      --border: 2px solid rgba(67, 97, 238, 0.2);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background-color: #f5f7fa;
+      color: var(--dark);
+    }
+
+    /* Título GPS-MEX */
+    #app-title {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      z-index: 1001;
+      background: white;
+      padding: 12px 20px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      font-weight: 700;
+      font-size: 20px;
+      color: var(--primary);
+      border: var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    #app-title::before {
+      content: "📍";
+      font-size: 24px;
+    }
+
+    #map {
+      flex-grow: 1;
+      width: 100%;
+      z-index: 1;
+    }
+
+    /* Panel de control moderno con borde */
+    #panel-control {
+      position: fixed;
+      bottom: 80px;
+      left: 20px;
+      width: 350px;
+      background: white;
+      padding: 20px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      border: var(--border);
+    }
+
+    #panel-control::before {
+      content: "";
+      position: absolute;
+      top: -2px;
+      left: -2px;
+      right: -2px;
+      bottom: -2px;
+      border: 2px solid var(--primary);
+      border-radius: var(--radius);
+      z-index: -1;
+      opacity: 0.3;
+    }
+
+    #info {
+      font-size: 14px;
+      color: var(--dark);
+      margin-bottom: 16px;
+      white-space: pre-line;
+      padding: 12px;
+      background: var(--gray-light);
+      border-radius: var(--radius-sm);
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      font-weight: 500;
+      border-left: 4px solid var(--primary);
+    }
+
+    #busqueda {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    #buscador {
+      flex-grow: 1;
+      padding: 14px 16px;
+      border: 1px solid var(--gray-light);
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      transition: all 0.3s;
+      border: var(--border);
+    }
+
+    #buscador:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.2);
+    }
+
+    #buscarBtn {
+      padding: 0 16px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    #buscarBtn:hover {
+      background: linear-gradient(135deg, var(--primary-dark), #2f3bb2);
+      transform: translateY(-2px);
+    }
+
+    /* Instrucciones con borde estilizado */
+    #instrucciones-container {
+      position: fixed;
+      top: 80px;
+      right: 20px;
+      width: 320px;
+      max-height: 60vh;
+      overflow-y: auto;
+      background: white;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      z-index: 1000;
+      padding: 20px;
+      border: var(--border);
+    }
+
+    #instrucciones-container h3 {
+      margin: 0 0 16px 0;
+      font-size: 18px;
+      color: var(--primary);
+      font-weight: 600;
+      padding-bottom: 8px;
+      border-bottom: 2px solid var(--gray-light);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #instrucciones-container h3::before {
+      content: "🗺️";
+    }
+
+    /* Barra de modos de transporte con borde */
+    #modo-movilidad {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      width: 350px;
+      display: flex;
+      gap: 10px;
+      background: white;
+      padding: 12px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      z-index: 1000;
+      border: var(--border);
+    }
+
+    /* Resto de estilos (similar al anterior pero con bordes añadidos) */
+    #instrucciones {
+      padding-left: 0;
+      margin: 0;
+      font-size: 14px;
+    }
+
+    #instrucciones li {
+      margin-bottom: 10px;
+      padding: 12px;
+      border-radius: var(--radius-sm);
+      list-style-type: none;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: all 0.2s;
+      border: 1px solid var(--gray-light);
+    }
+
+    #instrucciones li.instruccion-activa {
+      background-color: rgba(67, 97, 238, 0.1);
+      font-weight: 500;
+      color: var(--primary);
+      border-color: rgba(67, 97, 238, 0.3);
+      transform: translateX(5px);
+    }
+
+    .instruccion-icono {
+      background-color: var(--primary);
+      color: white;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      margin-right: 12px;
+      flex-shrink: 0;
+    }
+
+    .instruccion-texto {
+      flex-grow: 1;
+    }
+
+    .instruccion-distancia {
+      font-size: 12px;
+      color: var(--gray);
+      margin-left: 10px;
+      font-weight: 500;
+      background: var(--gray-light);
+      padding: 4px 8px;
+      border-radius: 12px;
+    }
+
+    /* Controles modernos */
+    .controles {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .grupo-coordenadas {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: 100%;
+    }
+
+    .grupo-coordenadas label {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--dark);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .grupo-coordenadas label::before {
+      font-size: 16px;
+    }
+
+    .coordenadas-inicio label::before {
+      content: "📍";
+    }
+
+    .coordenadas-destino label::before {
+      content: "🎯";
+    }
+
+    .grupo-coordenadas input {
+      width: 100%;
+      padding: 12px;
+      border: var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      transition: all 0.3s;
+    }
+
+    .grupo-coordenadas input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .grupo-transporte {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .grupo-transporte label {
+      font-size: 15px;
+      min-width: 120px;
+      font-weight: 500;
+    }
+
+    .grupo-transporte select {
+      flex-grow: 1;
+      padding: 12px;
+      border: var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      background-color: white;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .grupo-transporte select:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .grupo-opciones {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .grupo-opciones label {
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+
+    .grupo-opciones input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+
+    #modo-movilidad button {
+      flex: 1;
+      padding: 14px 8px;
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      opacity: 0.9;
+      transition: all 0.3s;
+      font-weight: 500;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      font-size: 14px;
+      border: 1px solid transparent;
+    }
+
+    #modo-movilidad button:hover {
+      opacity: 1;
+      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    #modo-movilidad button.active {
+      opacity: 1;
+      font-weight: 600;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      transform: translateY(-2px);
+      border: 1px solid white;
+    }
+
+    #btn-caminar {
+      background: linear-gradient(135deg, #4cc9f0, #4895ef);
+      color: white;
+    }
+
+    #btn-bicicleta {
+      background: linear-gradient(135deg, #f8961e, #f3722c);
+      color: white;
+    }
+
+    #btn-moto {
+      background: linear-gradient(135deg, #577590, #43aa8b);
+      color: white;
+    }
+
+    #btn-carro {
+      background: linear-gradient(135deg, #4361ee, #3a0ca3);
+      color: white;
+    }
+
+    /* Botones principales */
+    #calcularBtn,
+    #resetBtn {
+      padding: 14px;
+      color: white;
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 500;
+      flex-grow: 1;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border: 1px solid transparent;
+    }
+
+    #calcularBtn {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+    }
+
+    #calcularBtn:hover {
+      background: linear-gradient(135deg, var(--primary-dark), #2f3bb2);
+      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    #resetBtn {
+      background: linear-gradient(135deg, #f94144, #f3722c);
+    }
+
+    #resetBtn:hover {
+      background: linear-gradient(135deg, #e03537, #d95e1a);
+      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    /* Tiempo estimado */
+    #tiempoEstimado {
+      margin-top: 12px;
+      font-weight: 600;
+      color: var(--primary);
+      font-size: 16px;
+      text-align: center;
+      padding: 10px;
+      background: rgba(67, 97, 238, 0.1);
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(67, 97, 238, 0.2);
+    }
+
+    /* Animaciones */
+    .loading-spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255, 255, 255, .3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      #app-title {
+        top: 10px;
+        left: 10px;
+        font-size: 18px;
+        padding: 10px 16px;
+      }
+
+      #panel-control {
+        width: calc(100% - 40px);
+        left: 20px;
+        right: 20px;
+        padding: 16px;
+        bottom: 90px;
+      }
+
+      #instrucciones-container {
+        width: calc(100% - 40px);
+        right: 20px;
+        max-height: 30vh;
+        top: 70px;
+      }
+
+      #modo-movilidad {
+        width: calc(100% - 40px);
+        left: 20px;
+        bottom: 20px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Título GPS-MEX -->
+  <div id="app-title">GPS-MEX</div>
+
+  <div id="map"></div>
+
+  <!-- Panel de instrucciones con borde -->
+  <div id="instrucciones-container" class="card">
+    <h3>Instrucciones de Navegación</h3>
+    <ol id="instrucciones"></ol>
+  </div>
+
+  <!-- Panel de control principal con borde -->
+  <div id="panel-control" class="card">
+    <div id="info">📍 Haz clic en el mapa para seleccionar inicio y destino</div>
+
+    <div id="busqueda">
+      <input type="text" id="buscador" placeholder="🔍 Buscar lugar (Ej: Angel de la Independencia)" />
+      <button id="buscarBtn">Buscar</button>
+    </div>
+
+    <div class="grupo-transporte">
+      <label>🚗 Modo de transporte:</label>
+      <select id="tipoTransporte">
+        <option value="driving">Automóvil</option>
+        <option value="walking">Caminando</option>
+        <option value="cycling">Bicicleta</option>
+        <option value="motorcycle">Motocicleta</option>
+      </select>
+    </div>
+
+    <div class="grupo-opciones">
+      <label>
+        <input type="checkbox" id="evitarPeajes"> 🛣️ Evitar peajes
+      </label>
+      <label>
+        <input type="checkbox" id="mostrarAlternativas"> 🔄 Rutas alternativas
+      </label>
+    </div>
+
+    <div class="controles">
+      <div class="grupo-coordenadas coordenadas-inicio">
+        <label>Coordenadas Inicio:</label>
+        <input type="text" id="coordenadasInicio" placeholder="Ej: 19.4326, -99.1332">
+      </div>
+
+      <div class="grupo-coordenadas coordenadas-destino">
+        <label>Coordenadas Destino:</label>
+        <input type="text" id="coordenadasDestino" placeholder="Ej: 19.4359, -99.1441">
+      </div>
+
+      <button id="calcularBtn">📏 Calcular Ruta</button>
+      <button id="resetBtn">🔄 Reiniciar</button>
+    </div>
+
+    <div id="tiempoEstimado"></div>
+  </div>
+
+  <!-- Barra de modos de transporte -->
+  <div id="modo-movilidad">
+    <button id="btn-caminar" onclick="cambiarTransporte('walking', event)" class="active">
+      <span>🚶‍♂️</span> Caminar
+    </button>
+    <button id="btn-bicicleta" onclick="cambiarTransporte('cycling', event)">
+      <span>🚴‍♂️</span> Bici
+    </button>
+    <button id="btn-moto" onclick="cambiarTransporte('motorcycle', event)">
+      <span>🏍️</span> Moto
+    </button>
+    <button id="btn-carro" onclick="cambiarTransporte('driving', event)">
+      <span>🚗</span> Auto
+    </button>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+  <script src="{{ url_for('static', filename='main.js') }}"></script>
+</body>
+
+</html>
